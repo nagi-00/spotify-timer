@@ -3,15 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pomodoro Player</title>
+    <title>Pomodoro Player Widget</title>
     <style>
         :root {
-            --theme-color: #ffb7b2; /* 기본 테마 */
+            --theme-color: #ffb7b2;
             --bg-color: #ffffff;
             --text-color: #1d1d1f;
             --sub-text: #86868b;
             --shadow-pale: 0 4px 12px rgba(0,0,0,0.08);
-            --shadow-deep: 0 8px 20px rgba(0,0,0,0.12);
             --radius-window: 20px;
             --radius-widget: 16px;
         }
@@ -19,7 +18,7 @@
         * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; letter-spacing: -0.02em; user-select: none; }
         body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f2f2f2; padding: 20px; transition: background 0.3s; }
         
-        /* === Setup Window (macOS Style) === */
+        /* === Setup Window (macOS Style Fixed) === */
         .window {
             width: 100%; max-width: 420px; background: #fff; border-radius: var(--radius-window);
             box-shadow: 0 10px 30px rgba(0,0,0,0.08); overflow: hidden;
@@ -28,11 +27,14 @@
         }
         .title-bar { height: 50px; background: #fff; display: flex; align-items: center; padding: 0 16px; border-bottom: 1px solid rgba(0,0,0,0.05); }
         .dots { display: flex; gap: 7px; flex: 1; }
+        
+        /* 요청하신 index(10).html의 정확한 컬러 */
         .dot { width: 11px; height: 11px; border-radius: 50%; }
-        .dot.red { background: #ff5f57; border: 1px solid #e0443e; } 
-        .dot.yellow { background: #febc2e; border: 1px solid #dba524; } 
-        .dot.green { background: #28c840; border: 1px solid #1da932; }
-        .bar-title { font-size: 13px; font-weight: 600; color: #333; flex: 2; text-align: center; }
+        .dot.red { background: #e8bcbc; border: none; } 
+        .dot.yellow { background: #f4f4bd; border: none; } 
+        .dot.green { background: #c5e8c5; border: none; }
+
+        .bar-title { font-size: 13px; font-weight: 700; color: #333; flex: 2; text-align: center; }
         .nav-controls { flex: 1; display: flex; justify-content: flex-end; gap: 12px; }
         .nav-btn { background: none; border: none; cursor: pointer; color: #555; padding: 0; display: flex; align-items: center; opacity: 0.7; transition: 0.2s; }
         .nav-btn:hover { opacity: 1; }
@@ -43,11 +45,11 @@
         .step.active { display: block; }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-        h1 { font-size: 22px; font-weight: 700; margin: 0 0 8px; color: var(--text-color); }
+        h1 { font-size: 22px; font-weight: 800; margin: 0 0 8px; color: var(--text-color); }
         p { font-size: 13px; color: var(--sub-text); margin-bottom: 24px; line-height: 1.4; }
         
         .input-group { margin-bottom: 15px; }
-        label { display: block; font-size: 11px; font-weight: 600; color: #666; margin-bottom: 6px; text-transform: uppercase; }
+        label { display: block; font-size: 11px; font-weight: 700; color: #666; margin-bottom: 6px; text-transform: uppercase; }
         input[type="text"], input[type="number"], input[type="url"], select { 
             width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #e1e1e1; 
             background: #f9f9fc; outline: none; font-size: 13px; transition: 0.2s;
@@ -59,18 +61,19 @@
         .color-dot:hover { transform: scale(1.1); }
         .color-dot.active { box-shadow: 0 0 0 2px #333; }
 
-        /* === Widget Frame === */
+        /* === Widget Frame (Fixed Visibility) === */
         .widget-frame {
-            width: 300px; /* 스포티파이 위젯 느낌 */
-            min-height: 150px;
+            width: 320px; 
+            height: 160px; /* 고정 높이 지정으로 사라짐 방지 */
             background: #fff; 
             border-radius: var(--radius-widget);
             box-shadow: var(--shadow-pale);
             position: relative;
-            perspective: 1000px; /* 3D 효과 */
-            transition: height 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); /* 높이 애니메이션 */
+            perspective: 1000px;
+            transition: height 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            margin: 0 auto; /* 중앙 정렬 */
         }
-
+        
         /* 3D Flip Container */
         .flipper {
             position: relative; width: 100%; height: 100%;
@@ -79,67 +82,77 @@
         }
         .widget-frame.flipped .flipper { transform: rotateY(180deg); }
         
+        /* Faces */
         .face {
             position: absolute; width: 100%; height: 100%;
             backface-visibility: hidden; top: 0; left: 0;
-            background: #fff; border-radius: var(--radius-widget);
+            background: #fff; /* 배경색 명시 */
+            border-radius: var(--radius-widget);
             overflow: hidden; display: flex; flex-direction: column;
+            /* Safari Bug Fix */
+            -webkit-backface-visibility: hidden;
         }
+        .face.front { z-index: 2; transform: rotateY(0deg); }
         .face.back { transform: rotateY(180deg); background: #fbfbfb; overflow-y: auto; }
 
-        /* === Front Face: Player === */
+        /* === Player UI === */
         .player-header {
-            padding: 12px 14px 4px; display: flex; align-items: center; justify-content: space-between;
+            padding: 16px 16px 6px; display: flex; align-items: center; justify-content: space-between;
         }
         .song-info { display: flex; flex-direction: column; gap: 2px; }
-        .song-title { font-size: 14px; font-weight: 700; color: #222; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 200px; }
-        .song-status { font-size: 10px; font-weight: 600; color: var(--theme-color); text-transform: uppercase; letter-spacing: 0.05em; }
+        .song-title { font-size: 15px; font-weight: 800; color: #222; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 220px; }
+        .song-status { font-size: 10px; font-weight: 700; color: var(--theme-color); text-transform: uppercase; letter-spacing: 0.05em; }
 
-        .spotify-icon { width: 20px; height: 20px; cursor: pointer; opacity: 0.6; transition: 0.2s; fill: #1d1d1f; }
+        .spotify-icon { width: 22px; height: 22px; cursor: pointer; opacity: 0.6; transition: 0.2s; fill: #1d1d1f; }
         .spotify-icon:hover { opacity: 1; transform: scale(1.05); }
 
         .controls-area {
-            flex: 1; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 10px;
+            flex: 1; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 10px;
         }
         
-        /* 4 Album Arts Buttons */
+        /* 4 Album Arts */
         .album-btn {
-            width: 50px; height: 50px; border-radius: 8px; cursor: pointer;
-            position: relative; overflow: hidden; box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+            width: 52px; height: 52px; border-radius: 12px; cursor: pointer;
+            position: relative; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.06);
             transition: transform 0.2s, box-shadow 0.2s;
-            display: flex; align-items: center; justify-content: center;
+            background: #f0f0f0; /* 로딩 전 기본색 */
         }
         .album-btn:active { transform: scale(0.95); }
-        .album-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.1); }
-        .album-btn.playing { border: 2px solid var(--theme-color); animation: pulse 2s infinite; }
+        .album-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 16px rgba(0,0,0,0.12); }
         
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0,0,0,0.1); } 70% { box-shadow: 0 0 0 6px rgba(0,0,0,0); } 100% { box-shadow: 0 0 0 0 rgba(0,0,0,0); } }
+        /* 재생 중 효과 */
+        .album-btn.playing { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--theme-color); animation: bounce 1s infinite alternate; }
+        @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-2px); } }
 
-        .album-color { width: 100%; height: 100%; position: absolute; top: 0; left: 0; transition: 0.3s; }
-        .album-icon { position: relative; z-index: 2; color: #fff; font-size: 14px; opacity: 0.9; }
+        .album-color { width: 100%; height: 100%; position: absolute; top: 0; left: 0; transition: background 0.3s; }
+        .album-icon { 
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            z-index: 2; color: #fff; font-size: 20px; opacity: 0.9; 
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
 
-        /* Button 4 Flipper */
+        /* Stats Flipper (Button 4) */
         .btn-flipper { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; transition: transform 0.6s; }
         .album-btn.flipped .btn-flipper { transform: rotateX(180deg); }
-        .btn-face { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; border-radius: 8px; }
+        .btn-face { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; border-radius: 12px; }
         .btn-face.front { z-index: 2; }
-        .btn-face.back { transform: rotateX(180deg); background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); }
-        .session-count { color: #fff; font-weight: 800; font-size: 18px; }
+        .btn-face.back { transform: rotateX(180deg); background: rgba(50,50,50,0.8); backdrop-filter: blur(4px); }
+        .session-count { color: #fff; font-weight: 800; font-size: 20px; }
 
         /* Progress Bar */
-        .progress-container { padding: 0 16px 16px; }
-        .progress-bg { width: 100%; height: 4px; background: rgba(0,0,0,0.05); border-radius: 2px; overflow: hidden; position: relative; }
-        .progress-fill { height: 100%; background: var(--theme-color); width: 0%; border-radius: 2px; transition: width 1s linear; }
-        .time-labels { display: flex; justify-content: space-between; margin-top: 6px; font-size: 9px; color: #aaa; font-weight: 500; font-variant-numeric: tabular-nums; }
+        .progress-container { padding: 0 16px 18px; }
+        .progress-bg { width: 100%; height: 5px; background: rgba(0,0,0,0.06); border-radius: 3px; overflow: hidden; position: relative; }
+        .progress-fill { height: 100%; background: var(--theme-color); width: 0%; border-radius: 3px; transition: width 1s linear, background 0.3s; }
+        .time-labels { display: flex; justify-content: space-between; margin-top: 6px; font-size: 10px; color: #aaa; font-weight: 600; font-variant-numeric: tabular-nums; }
 
-        /* === Back Face: Settings === */
+        /* === Settings UI === */
         .settings-header { padding: 14px 16px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
         .settings-title { font-size: 12px; font-weight: 700; color: #333; }
         .close-btn { cursor: pointer; color: #888; background: none; border: none; font-size: 11px; font-weight: 600; }
         .settings-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
         .setting-row { display: flex; flex-direction: column; gap: 4px; }
-        .row-label { font-size: 10px; color: #666; font-weight: 600; }
-        .mini-input { padding: 6px 8px; font-size: 11px; border-radius: 6px; border: 1px solid #ddd; width: 100%; }
+        .row-label { font-size: 10px; color: #666; font-weight: 700; }
+        .mini-input { padding: 8px; font-size: 11px; border-radius: 6px; border: 1px solid #ddd; width: 100%; }
         .toggle-row { display: flex; justify-content: space-between; align-items: center; }
         .toggle-switch { width: 32px; height: 18px; background: #ddd; border-radius: 10px; position: relative; cursor: pointer; transition: 0.3s; }
         .toggle-switch.on { background: var(--theme-color); }
@@ -152,8 +165,8 @@
         body.is-embed .widget-frame { margin: 0; box-shadow: none; border: 1px solid rgba(0,0,0,0.08); }
 
         /* Tooltip */
-        .tooltip { font-size: 9px; position: absolute; bottom: -20px; width: 100%; text-align: center; opacity: 0; transition: 0.2s; color: #888; pointer-events: none;}
-        .album-btn:hover .tooltip { opacity: 1; bottom: -16px; }
+        .tooltip { font-size: 9px; position: absolute; bottom: -20px; width: 100%; text-align: center; opacity: 0; transition: 0.2s; color: #888; pointer-events: none; font-weight: 600;}
+        .album-btn:hover .tooltip { opacity: 1; bottom: -18px; }
 
     </style>
 </head>
@@ -162,7 +175,7 @@
     <div class="window" id="setupWindow">
         <div class="title-bar">
             <div class="dots"><div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div></div>
-            <div class="bar-title">Pomodoro Cooker</div>
+            <div class="bar-title">Pomodoro Player</div>
             <div class="nav-controls">
                 <button class="nav-btn" id="prevBtn" onclick="moveStep(-1)" disabled><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg></button>
                 <button class="nav-btn" id="nextBtn" onclick="moveStep(1)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg></button>
@@ -174,7 +187,7 @@
                 <p>플레이어의 테마 색상과 타이틀을 정해주세요.</p>
                 <div class="input-group">
                     <label>Title</label>
-                    <input type="text" id="titleInput" value="Party Rockk" placeholder="음악 제목 (예: Lo-fi Beats)">
+                    <input type="text" id="titleInput" value="Party Rockk" oninput="liveUpdate()" placeholder="음악 제목">
                 </div>
                 <label>Theme Color</label>
                 <div class="color-palette" id="palette">
@@ -189,15 +202,15 @@
                 <div style="display:flex; gap:10px;">
                     <div class="input-group" style="flex:1;">
                         <label>Focus</label>
-                        <input type="number" id="focusTime" value="25">
+                        <input type="number" id="focusTime" value="25" oninput="liveUpdate()">
                     </div>
                     <div class="input-group" style="flex:1;">
-                        <label>Short Break</label>
-                        <input type="number" id="shortBreak" value="5">
+                        <label>Short</label>
+                        <input type="number" id="shortBreak" value="5" oninput="liveUpdate()">
                     </div>
                     <div class="input-group" style="flex:1;">
-                        <label>Long Break</label>
-                        <input type="number" id="longBreak" value="15">
+                        <label>Long</label>
+                        <input type="number" id="longBreak" value="15" oninput="liveUpdate()">
                     </div>
                 </div>
                 <div class="input-group">
@@ -208,7 +221,7 @@
 
             <div class="step" id="step3">
                 <h1>Finishing Touches</h1>
-                <p>자동 시작 여부와 완료 시 열릴 링크를 설정하세요.</p>
+                <p>완료 시 열릴 링크를 설정하세요.</p>
                 <div class="input-group" style="display:flex; justify-content:space-between; align-items:center; background:#f9f9fc; padding:12px; border-radius:10px; border:1px solid #eee;">
                     <span style="font-size:13px; color:#333;">Auto-start Breaks?</span>
                     <div class="toggle-switch" id="autoStartToggle" onclick="this.classList.toggle('on')">
@@ -218,12 +231,11 @@
                 <div class="input-group">
                     <label>Reward Link (Optional)</label>
                     <input type="url" id="rewardLink" placeholder="https://youtube.com/..." style="margin-bottom:5px;">
-                    <span style="font-size:10px; color:#999;">긴 휴식이 시작될 때 이 링크가 열립니다.</span>
                 </div>
             </div>
 
              <div class="step" id="step4">
-                <h1>Ready to Cook!</h1>
+                <h1>Ready to Play!</h1>
                 <p>아래 URL을 복사하여 노션에 임베드하세요.</p>
                 <input type="text" id="resultUrl" readonly onclick="this.select()" style="font-family:monospace; color:var(--theme-color);">
                 <button onclick="copyUrl()" style="width:100%; margin-top:10px; background:#1d1d1f; color:#fff; padding:12px; border:none; border-radius:10px; font-weight:600; cursor:pointer;">Copy URL</button>
@@ -248,17 +260,17 @@
                     <div class="album-btn" id="btnFocus" onclick="controlTimer('focus')">
                         <div class="album-color" id="c1"></div>
                         <span class="album-icon">🔥</span>
-                        <div class="tooltip">Focus</div>
+                        <div class="tooltip">25m</div>
                     </div>
                     <div class="album-btn" id="btnShort" onclick="controlTimer('short')">
                         <div class="album-color" id="c2"></div>
                         <span class="album-icon">☕️</span>
-                        <div class="tooltip">Short</div>
+                        <div class="tooltip">5m</div>
                     </div>
                     <div class="album-btn" id="btnLong" onclick="controlTimer('long')">
                         <div class="album-color" id="c3"></div>
                         <span class="album-icon">🌴</span>
-                        <div class="tooltip">Long</div>
+                        <div class="tooltip">15m</div>
                     </div>
                     <div class="album-btn" id="btnStats" onclick="toggleStats()">
                         <div class="btn-flipper">
@@ -287,7 +299,7 @@
 
             <div class="face back">
                 <div class="settings-header">
-                    <span class="settings-title">Edit Recipe</span>
+                    <span class="settings-title">Quick Edit</span>
                     <button class="close-btn" onclick="toggleSettings()">Done</button>
                 </div>
                 <div class="settings-body">
@@ -296,11 +308,11 @@
                         <input type="text" class="mini-input" id="editTitle" oninput="liveUpdate()">
                     </div>
                     <div class="setting-row">
-                        <label class="row-label">Times (min)</label>
+                        <label class="row-label">Times (Focus / Short / Long)</label>
                         <div style="display:flex; gap:5px;">
-                            <input type="number" class="mini-input" id="editFocus" placeholder="F" onchange="liveUpdate()">
-                            <input type="number" class="mini-input" id="editShort" placeholder="S" onchange="liveUpdate()">
-                            <input type="number" class="mini-input" id="editLong" placeholder="L" onchange="liveUpdate()">
+                            <input type="number" class="mini-input" id="editFocus" onchange="liveUpdate()">
+                            <input type="number" class="mini-input" id="editShort" onchange="liveUpdate()">
+                            <input type="number" class="mini-input" id="editLong" onchange="liveUpdate()">
                         </div>
                     </div>
                     <div class="toggle-row">
@@ -313,9 +325,6 @@
                         <label class="row-label">YouTube Link</label>
                         <input type="url" class="mini-input" id="editLink" placeholder="https://..." onchange="liveUpdate()">
                     </div>
-                    <div class="setting-row">
-                        <label class="row-label" style="margin-top:5px; color:#aaa;">Changes are saved locally for this session.</label>
-                    </div>
                 </div>
             </div>
         </div>
@@ -323,9 +332,10 @@
 
 <script>
     /* === GLOBAL STATE === */
-    const presets = ["ffb7b2", "e2f0cb", "b5ead7", "c7ceea", "e0f2f1", "1d1d1f"];
+    // 마지막 컬러 595959로 수정 완료
+    const presets = ["ffb7b2", "e2f0cb", "b5ead7", "c7ceea", "e0f2f1", "595959"];
     let currentState = {
-        mode: 'IDLE', // FOCUS, SHORT, LONG
+        mode: 'IDLE',
         timeLeft: 1500,
         totalTime: 1500,
         isRunning: false,
@@ -357,7 +367,7 @@
             };
             pal.appendChild(d);
         });
-        document.querySelector('.color-dot').click(); // Select first
+        document.querySelector('.color-dot').click(); // Default select
     }
 
     function pickCustomColor(hex) {
@@ -377,22 +387,20 @@
         document.getElementById(`step${step}`).classList.add('active');
         document.getElementById('prevBtn').disabled = (step === 1);
         document.getElementById('nextBtn').style.display = (step === 4) ? 'none' : 'block';
-
         if (step === 4) generateUrl();
     }
 
     function generateUrl() {
-        const c = currentState.config;
-        c.title = document.getElementById('titleInput').value || "Music";
-        c.focus = parseInt(document.getElementById('focusTime').value) || 25;
-        c.short = parseInt(document.getElementById('shortBreak').value) || 5;
-        c.long = parseInt(document.getElementById('longBreak').value) || 15;
-        c.sets = parseInt(document.getElementById('setsPerSession').value) || 4;
-        c.autoStart = document.getElementById('autoStartToggle').classList.contains('on');
-        c.link = document.getElementById('rewardLink').value;
+        // Sync Inputs
+        currentState.config.title = document.getElementById('titleInput').value || "Music";
+        currentState.config.focus = parseInt(document.getElementById('focusTime').value) || 25;
+        currentState.config.short = parseInt(document.getElementById('shortBreak').value) || 5;
+        currentState.config.long = parseInt(document.getElementById('longBreak').value) || 15;
+        currentState.config.sets = parseInt(document.getElementById('setsPerSession').value) || 4;
+        currentState.config.autoStart = document.getElementById('autoStartToggle').classList.contains('on');
+        currentState.config.link = document.getElementById('rewardLink').value;
 
-        // Base64 encode config
-        const json = JSON.stringify(c);
+        const json = JSON.stringify(currentState.config);
         const encoded = btoa(encodeURIComponent(json));
         const url = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
         
@@ -418,27 +426,23 @@
                 currentState.config = cfg;
             } catch(e) { console.error("URL Parsing Error", e); }
         } else {
-            initOnboarding(); // Show setup if no data
+            initOnboarding(); // Setup mode
         }
 
         // Apply Config
-        updateWidgetUI();
-        applyColorsToWidget(currentState.config.theme);
-        
-        // Populate Settings inputs
         document.getElementById('editTitle').value = currentState.config.title;
         document.getElementById('editFocus').value = currentState.config.focus;
         document.getElementById('editShort').value = currentState.config.short;
         document.getElementById('editLong').value = currentState.config.long;
         document.getElementById('editLink').value = currentState.config.link;
         if(currentState.config.autoStart) document.getElementById('editAuto').classList.add('on');
+
+        liveUpdate();
+        applyColorsToWidget(currentState.config.theme);
+        updateWidgetUI();
     }
 
     function updateWidgetUI() {
-        document.getElementById('dTitle').innerText = currentState.config.title;
-        document.documentElement.style.setProperty('--theme-color', '#' + currentState.config.theme);
-        
-        // Update Time Display
         const min = Math.floor(currentState.timeLeft / 60).toString().padStart(2, '0');
         const sec = (currentState.timeLeft % 60).toString().padStart(2, '0');
         document.getElementById('currentTime').innerText = `${min}:${sec}`;
@@ -446,14 +450,12 @@
         const tMin = Math.floor(currentState.totalTime / 60).toString().padStart(2, '0');
         document.getElementById('totalTime').innerText = `${tMin}:00`;
 
-        // Progress
-        const percent = ((currentState.totalTime - currentState.timeLeft) / currentState.totalTime) * 100;
+        const percent = currentState.totalTime === 0 ? 0 : ((currentState.totalTime - currentState.timeLeft) / currentState.totalTime) * 100;
         document.getElementById('progBar').style.width = `${percent}%`;
     }
 
-    /* Color Harmony Generator */
     function applyColorsToWidget(hex) {
-        // Convert Hex to HSL for manipulation
+        // HSL Algorithm to create harmony
         let r = parseInt(hex.substring(0,2), 16)/255;
         let g = parseInt(hex.substring(2,4), 16)/255;
         let b = parseInt(hex.substring(4,6), 16)/255;
@@ -467,11 +469,11 @@
             h /= 6;
         }
         
-        // Create 4 Harmonious Colors
-        const c1 = `hsl(${h*360}, ${s*100}%, ${l*100}%)`; // Main
-        const c2 = `hsl(${h*360}, ${Math.max(0, s*100 - 20)}%, ${Math.min(100, l*100 + 15)}%)`; // Lighter/Muted
-        const c3 = `hsl(${(h*360 + 30) % 360}, ${s*100}%, ${Math.min(100, l*100 + 5)}%)`; // Analogous
-        const c4 = `hsl(${h*360}, ${s*100}%, ${Math.max(0, l*100 - 10)}%)`; // Darker
+        // Generate 4 colors (Even for dark gray, this generates variations)
+        const c1 = `hsl(${h*360}, ${s*100}%, ${l*100}%)`; 
+        const c2 = `hsl(${h*360}, ${Math.max(0, s*100 - 10)}%, ${Math.min(95, l*100 + 20)}%)`; 
+        const c3 = `hsl(${(h*360 + 20) % 360}, ${s*100}%, ${Math.min(90, l*100 + 10)}%)`; 
+        const c4 = `hsl(${h*360}, ${s*100}%, ${Math.max(20, l*100 - 20)}%)`; 
 
         document.getElementById('c1').style.background = c1;
         document.getElementById('c2').style.background = c2;
@@ -483,7 +485,7 @@
     function controlTimer(action) {
         const btns = ['btnFocus', 'btnShort', 'btnLong'];
         
-        // If clicking the active mode button -> Pause/Resume
+        // Pause/Resume Logic
         if (currentState.mode.toLowerCase() === action && currentState.isRunning) {
             pauseTimer();
             return;
@@ -493,14 +495,13 @@
             return;
         }
 
-        // Reset Styles
+        // Initialize Timer
         btns.forEach(b => document.getElementById(b).classList.remove('playing'));
         document.getElementById('btn' + action.charAt(0).toUpperCase() + action.slice(1)).classList.add('playing');
 
-        // Setup Time
         clearInterval(currentState.timerId);
         currentState.isRunning = false;
-        currentState.mode = action.toUpperCase(); // FOCUS, SHORT, LONG
+        currentState.mode = action.toUpperCase();
         
         let min = 25;
         if (action === 'focus') {
@@ -526,17 +527,14 @@
         currentState.timerId = setInterval(() => {
             currentState.timeLeft--;
             updateWidgetUI();
-            
-            if (currentState.timeLeft <= 0) {
-                onTimerComplete();
-            }
+            if (currentState.timeLeft <= 0) onTimerComplete();
         }, 1000);
     }
 
     function pauseTimer() {
         clearInterval(currentState.timerId);
         currentState.isRunning = false;
-        document.querySelector('.playing')?.classList.remove('playing'); // Stop pulse
+        document.querySelector('.playing')?.classList.remove('playing');
         document.getElementById('dStatus').innerText = "Paused";
     }
 
@@ -544,42 +542,28 @@
         pauseTimer();
         const mode = currentState.mode;
         
-        // Logic Flow
         if (mode === 'FOCUS') {
             currentState.currentSet++;
             if (currentState.currentSet >= currentState.config.sets) {
-                // Time for Long Break
-                alert("Great Job! Time for a Long Break 🌴");
-                controlTimer('long');
+                document.getElementById('dStatus').innerText = "Try Long Break 🌴";
+                controlTimer('long'); // Suggest or auto?
             } else {
-                // Time for Short Break
-                if (currentState.config.autoStart) {
-                    controlTimer('short');
-                } else {
-                    document.getElementById('dStatus').innerText = "Focus Done";
-                    // Alert or Sound here optionally
-                }
+                if (currentState.config.autoStart) controlTimer('short');
+                else document.getElementById('dStatus').innerText = "Focus Done";
             }
         } else if (mode === 'SHORT') {
-            document.getElementById('dStatus').innerText = "Break Over";
-             if (currentState.config.autoStart) {
-                controlTimer('focus');
-             }
+             if (currentState.config.autoStart) controlTimer('focus');
+             else document.getElementById('dStatus').innerText = "Break Over";
         } else if (mode === 'LONG') {
-            // End of Session
             currentState.completedSessions++;
-            currentState.currentSet = 0; // Reset sets
+            currentState.currentSet = 0;
             document.getElementById('sessionVal').innerText = currentState.completedSessions;
             document.getElementById('dStatus').innerText = "Session Done";
-            
-            // Trigger Link
-            if (currentState.config.link) {
-                window.open(currentState.config.link, '_blank');
-            }
+            if (currentState.config.link) window.open(currentState.config.link, '_blank');
         }
     }
 
-    /* Flip Logic & Settings */
+    /* Interactive UI */
     function toggleStats() {
         document.getElementById('btnStats').classList.toggle('flipped');
     }
@@ -589,13 +573,9 @@
         const isFlippingToSettings = !frame.classList.contains('flipped');
         
         frame.classList.toggle('flipped');
-
-        // Dynamic Height Expansion
-        if (isFlippingToSettings) {
-             frame.style.height = "280px"; // Expand for settings
-        } else {
-             frame.style.height = ""; // Reset to CSS default (min-height: 150px or auto)
-        }
+        // Expand Height for Settings
+        if (isFlippingToSettings) frame.style.height = "290px";
+        else frame.style.height = "160px";
     }
 
     function toggleEditAuto(el) {
@@ -604,17 +584,26 @@
     }
 
     function liveUpdate() {
-        currentState.config.title = document.getElementById('editTitle').value;
-        currentState.config.focus = parseInt(document.getElementById('editFocus').value) || 25;
-        currentState.config.short = parseInt(document.getElementById('editShort').value) || 5;
-        currentState.config.long = parseInt(document.getElementById('editLong').value) || 15;
-        currentState.config.autoStart = document.getElementById('editAuto').classList.contains('on');
-        currentState.config.link = document.getElementById('editLink').value;
+        // Sync Inputs with State
+        currentState.config.title = document.getElementById('titleInput').value || document.getElementById('editTitle').value;
+        currentState.config.focus = parseInt(document.getElementById('focusTime').value || document.getElementById('editFocus').value) || 25;
+        currentState.config.short = parseInt(document.getElementById('shortBreak').value || document.getElementById('editShort').value) || 5;
+        currentState.config.long = parseInt(document.getElementById('longBreak').value || document.getElementById('editLong').value) || 15;
+        currentState.config.autoStart = document.getElementById('autoStartToggle').classList.contains('on') || document.getElementById('editAuto').classList.contains('on');
         
+        // Update UI
         document.getElementById('dTitle').innerText = currentState.config.title;
+        document.getElementById('editTitle').value = currentState.config.title;
+        document.getElementById('editFocus').value = currentState.config.focus;
+        document.getElementById('editShort').value = currentState.config.short;
+        document.getElementById('editLong').value = currentState.config.long;
+
+        // Tooltips update
+        document.querySelector('#btnFocus .tooltip').innerText = currentState.config.focus + "m";
+        document.querySelector('#btnShort .tooltip').innerText = currentState.config.short + "m";
+        document.querySelector('#btnLong .tooltip').innerText = currentState.config.long + "m";
     }
 
-    // Initialize
     window.onload = initWidget;
 
 </script>
