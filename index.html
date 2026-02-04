@@ -3,671 +3,292 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Glass Pomodoro Player</title>
+    <title>Neumorphic Pomodoro</title>
     <style>
         :root {
-            --theme-color: #ffb7b2;
-            --bg-glass: rgba(255, 255, 255, 0.65);
-            --border-glass: rgba(255, 255, 255, 0.4);
-            --text-main: #1d1d1f;
-            --text-sub: #86868b;
-            --icon-color: #1d1d1f;
-            --shadow-pale: 0 8px 32px rgba(0,0,0,0.1);
-            --radius-window: 20px;
-            --radius-widget: 18px;
-            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            --bg-color: #f0f0f3;
+            --theme-color: #e8bcbc;
+            --text-main: #444;
+            --text-sub: #888;
+            --shadow-light: 10px 10px 20px #bebebe, -10px -10px 20px #ffffff;
+            --shadow-inset: inset 6px 6px 12px #bebebe, inset -6px -6px 12px #ffffff;
+            --shadow-small: 4px 4px 8px #bebebe, -4px -4px 8px #ffffff;
         }
 
-        /* Dark Glass Theme Override */
-        [data-theme="dark"] {
-            --bg-glass: rgba(20, 20, 20, 0.65);
-            --border-glass: rgba(255, 255, 255, 0.1);
-            --text-main: #ffffff;
-            --text-sub: #a0a0a0;
-            --icon-color: #ffffff;
-            --shadow-pale: 0 8px 32px rgba(0,0,0,0.3);
-        }
+        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--bg-color); padding: 20px; transition: background 0.3s; color: var(--text-main); }
 
-        * { box-sizing: border-box; font-family: var(--font-family); letter-spacing: -0.02em; user-select: none; }
-        body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #eef2f5; padding: 20px; transition: background 0.3s; }
-        
-        /* === Setup Window === */
+        /* === Onboarding UI (Simplified for Setup) === */
         .window {
-            width: 100%; max-width: 440px; background: #fff; border-radius: var(--radius-window);
-            box-shadow: 0 10px 40px rgba(0,0,0,0.08); overflow: hidden;
-            border: 1px solid rgba(0,0,0,0.06); display: flex; flex-direction: column;
-            margin-bottom: 40px; z-index: 10; transition: 0.3s;
+            width: 100%; max-width: 400px; background: var(--bg-color); border-radius: 30px;
+            box-shadow: var(--shadow-light); padding: 30px; margin-bottom: 30px;
         }
-        .title-bar { height: 50px; background: #fff; display: flex; align-items: center; padding: 0 18px; border-bottom: 1px solid rgba(0,0,0,0.05); }
-        .dots { display: flex; gap: 8px; flex: 1; }
-        .dot { width: 12px; height: 12px; border-radius: 50%; }
-        .dot.red { background: #e8bcbc; } 
-        .dot.yellow { background: #f4f4bd; } 
-        .dot.green { background: #c5e8c5; }
-
-        .bar-title { font-size: 13px; font-weight: 700; color: #333; flex: 2; text-align: center; }
-        .nav-controls { flex: 1; display: flex; justify-content: flex-end; gap: 12px; }
-        .nav-btn { background: none; border: none; cursor: pointer; color: #555; padding: 0; display: flex; align-items: center; opacity: 0.7; transition: 0.2s; }
-        .nav-btn:hover { opacity: 1; }
-        .nav-btn:disabled { opacity: 0.2; cursor: default; }
-
-        .content { padding: 32px 28px; min-height: 320px; position: relative; }
-        .step { display: none; animation: fadeUp 0.3s ease; }
+        .step { display: none; }
         .step.active { display: block; }
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-
-        h1 { font-size: 24px; font-weight: 800; margin: 0 0 10px; color: #1d1d1f; }
-        p { font-size: 14px; color: #86868b; margin-bottom: 28px; line-height: 1.5; }
-        
-        .input-group { margin-bottom: 18px; }
-        label { display: block; font-size: 11px; font-weight: 700; color: #666; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
-        input[type="text"], input[type="number"], input[type="url"], select { 
-            width: 100%; padding: 14px; border-radius: 12px; border: 1px solid #e1e1e1; 
-            background: #f5f5f7; outline: none; font-size: 14px; transition: 0.2s; color: #333;
+        h2 { font-weight: 800; margin-top: 0; }
+        input { 
+            width: 100%; padding: 15px; border: none; border-radius: 15px; 
+            background: var(--bg-color); box-shadow: var(--shadow-inset); outline: none; margin-bottom: 20px;
         }
-        input:focus { border-color: var(--theme-color); background: #fff; }
-        
-        /* Color Palette */
-        .color-palette { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; }
-        .color-dot { width: 32px; height: 32px; border-radius: 50%; cursor: pointer; border: 2px solid #fff; box-shadow: 0 0 0 1px #ddd; transition: 0.2s; position: relative; }
-        .color-dot:hover { transform: scale(1.1); }
-        .color-dot.active { box-shadow: 0 0 0 2px #333; transform: scale(1.1); }
-
-        /* Glass Mode Selector */
-        .glass-selector { display: flex; gap: 10px; margin-bottom: 20px; }
-        .glass-option { 
-            flex: 1; padding: 12px; border: 1px solid #eee; border-radius: 12px; 
-            cursor: pointer; text-align: center; font-size: 12px; font-weight: 600; color: #555;
-            transition: 0.2s; background: #f9f9f9;
+        .nav-btns { display: flex; justify-content: space-between; margin-top: 20px; }
+        .btn-ui { 
+            padding: 10px 20px; border-radius: 10px; border: none; background: var(--bg-color);
+            box-shadow: var(--shadow-small); cursor: pointer; font-weight: 700;
         }
-        .glass-option.active { background: #333; color: #fff; border-color: #333; }
-        
-        /* Image Upload Area */
-        .file-drop-area {
-            position: relative; display: flex; align-items: center; justify-content: center;
-            width: 100%; padding: 20px; border: 2px dashed #ddd; border-radius: 12px;
-            transition: 0.2s; background: #fafafa; cursor: pointer; text-align: center;
-        }
-        .file-drop-area:hover { border-color: var(--theme-color); background: #f0f4ff; }
-        .file-msg { font-size: 12px; color: #888; pointer-events: none; }
-        .file-input { position: absolute; left: 0; top: 0; height: 100%; width: 100%; opacity: 0; cursor: pointer; }
+        .btn-ui:active { box-shadow: var(--shadow-inset); }
 
-        /* === Widget Frame === */
-        .widget-frame {
-            width: 320px; 
-            height: 160px; /* 초기 높이 */
-            border-radius: var(--radius-widget);
-            box-shadow: var(--shadow-pale);
-            position: relative;
-            perspective: 1000px;
-            margin: 0 auto; 
-            transition: height 0.5s cubic-bezier(0.25, 1, 0.5, 1); /* Smooth height resize */
+        /* === NEUMORPHIC WIDGET === */
+        .widget-card {
+            width: 340px; height: 600px; background: var(--bg-color); border-radius: 40px;
+            box-shadow: var(--shadow-light); padding: 30px; display: flex; flex-direction: column;
+            position: relative; overflow: hidden;
         }
-        
-        .flipper {
-            position: relative; width: 100%; height: 100%;
-            transition: transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1); /* Elastic Flip */
-            transform-style: preserve-3d;
+
+        .header { text-align: center; margin-bottom: 40px; }
+        .created-by { font-size: 10px; color: var(--text-sub); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; opacity: 0.6; }
+        .main-title { font-size: 24px; font-weight: 900; margin: 0; letter-spacing: -0.5px; color: #333; }
+        .sub-title { font-size: 12px; color: var(--text-sub); margin-top: 5px; }
+
+        .main-content { display: flex; align-items: center; justify-content: space-between; flex: 1; }
+
+        /* Vertical Control Bar */
+        .side-bar {
+            width: 60px; height: 320px; border-radius: 30px;
+            box-shadow: var(--shadow-inset); display: flex; flex-direction: column;
+            justify-content: space-around; align-items: center; padding: 15px 0;
         }
-        .widget-frame.flipped .flipper { transform: rotateY(180deg); }
-        
-        /* Glass Face */
-        .face {
-            position: absolute; width: 100%; height: 100%;
-            backface-visibility: hidden; top: 0; left: 0;
-            border-radius: var(--radius-widget);
-            overflow: hidden; display: flex; flex-direction: column;
-            -webkit-backface-visibility: hidden;
-            
-            /* Glassmorphism Logic */
-            background: var(--bg-glass);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid var(--border-glass);
+        .mode-btn {
+            width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center;
+            justify-content: center; cursor: pointer; font-size: 20px; transition: 0.3s;
+            color: #aaa;
         }
-        .face.front { z-index: 2; transform: rotateY(0deg); }
-        .face.back { transform: rotateY(180deg); overflow-y: hidden; }
-
-        /* === Player UI === */
-        .player-header {
-            padding: 18px 20px 8px; display: flex; align-items: center; justify-content: space-between;
+        .mode-btn.active { 
+            box-shadow: var(--shadow-small); color: var(--theme-color); transform: scale(1.1);
         }
-        .song-info { display: flex; flex-direction: column; gap: 3px; }
-        .song-title { font-size: 16px; font-weight: 800; color: var(--text-main); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 200px; }
-        .song-status { font-size: 11px; font-weight: 700; color: var(--theme-color); text-transform: uppercase; letter-spacing: 0.05em; }
 
-        .spotify-icon { width: 22px; height: 22px; cursor: pointer; opacity: 0.7; transition: 0.2s; fill: var(--icon-color); }
-        .spotify-icon:hover { opacity: 1; transform: scale(1.1); }
-
-        .controls-area {
-            flex: 1; display: flex; align-items: center; justify-content: center; gap: 14px; padding: 10px;
+        /* Large Circular Timer */
+        .timer-container {
+            position: relative; width: 220px; height: 220px;
+            border-radius: 50%; box-shadow: var(--shadow-light);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: linear-gradient(145deg, #ffffff, #d8d8d8);
         }
-        
-        /* Album Buttons (Gradients & Image) */
-        .album-btn {
-            width: 54px; height: 54px; border-radius: 14px; cursor: pointer;
-            position: relative; overflow: hidden; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-            transition: transform 0.2s, box-shadow 0.2s;
-            background-size: cover; background-position: center;
+        .timer-inner {
+            width: 180px; height: 180px; border-radius: 50%;
+            background: var(--bg-color); box-shadow: var(--shadow-inset);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
-        .album-btn:active { transform: scale(0.92); }
-        .album-btn:hover { transform: translateY(-4px); box-shadow: 0 10px 20px rgba(0,0,0,0.15); }
-        
-        .album-btn.playing { 
-            box-shadow: 0 0 0 2px var(--bg-glass), 0 0 0 4px var(--theme-color); 
-            animation: breathe 2s infinite ease-in-out; 
+        /* Gradient overlay inside timer */
+        .timer-fill-bg {
+            position: absolute; width: 100%; height: 100%; border-radius: 50%;
+            background: var(--theme-color); opacity: 0.2; z-index: 1;
         }
-        @keyframes breathe { 0% { transform: scale(1); } 50% { transform: scale(1.03); } 100% { transform: scale(1); } }
+        .timer-text { position: relative; z-index: 2; text-align: center; }
+        .percent-val { font-size: 38px; font-weight: 800; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .time-val { font-size: 24px; font-weight: 700; color: #fff; opacity: 0.9; }
 
-        /* Remove Emojis, Use Gradients */
-        .album-gradient { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
-        
-        /* Stats Flipper */
-        .btn-flipper { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; transition: transform 0.6s; }
-        .album-btn.flipped .btn-flipper { transform: rotateX(180deg); }
-        .btn-face { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; }
-        .btn-face.front { z-index: 2; }
-        .btn-face.back { transform: rotateX(180deg); background: rgba(20,20,20,0.8); backdrop-filter: blur(4px); }
-        .session-count { color: #fff; font-weight: 800; font-size: 22px; text-shadow: 0 2px 4px rgba(0,0,0,0.2); }
-
-        /* Progress Bar */
-        .progress-container { padding: 0 20px 24px; /* Bottom padding increased */ }
-        .progress-bg { width: 100%; height: 6px; background: rgba(128,128,128,0.2); border-radius: 3px; overflow: hidden; position: relative; }
-        .progress-fill { height: 100%; background: var(--theme-color); width: 0%; border-radius: 3px; transition: width 1s linear; }
-        .time-labels { display: flex; justify-content: space-between; margin-top: 8px; font-size: 11px; color: var(--text-sub); font-weight: 600; font-variant-numeric: tabular-nums; }
-
-        /* === Settings UI (Expanded) === */
-        .settings-header { padding: 16px 20px; border-bottom: 1px solid var(--border-glass); display: flex; justify-content: space-between; align-items: center; }
-        .settings-title { font-size: 13px; font-weight: 800; color: var(--text-main); }
-        .close-btn { cursor: pointer; color: var(--text-sub); background: none; border: none; font-size: 12px; font-weight: 600; }
-        .close-btn:hover { color: var(--text-main); }
-
-        .settings-body { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
-        .setting-row { display: flex; flex-direction: column; gap: 6px; }
-        .row-label { font-size: 11px; color: var(--text-sub); font-weight: 700; text-transform: uppercase; }
-        
-        .mini-input { 
-            padding: 10px; font-size: 12px; border-radius: 8px; border: 1px solid rgba(128,128,128,0.2); 
-            width: 100%; background: rgba(255,255,255,0.5); color: var(--text-main);
+        .current-mode-label { 
+            position: absolute; bottom: 80px; right: 30px; 
+            font-size: 12px; font-weight: 700; color: var(--text-sub); 
         }
-        
-        .toggle-row { display: flex; justify-content: space-between; align-items: center; }
-        .toggle-switch { width: 36px; height: 20px; background: rgba(128,128,128,0.3); border-radius: 20px; position: relative; cursor: pointer; transition: 0.3s; }
-        .toggle-switch.on { background: var(--theme-color); }
-        .toggle-knob { width: 16px; height: 16px; background: #fff; border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: 0.3s; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
-        .toggle-switch.on .toggle-knob { transform: translateX(16px); }
+        .current-mode-label span { color: var(--theme-color); }
 
-        /* Embed State */
-        body.is-embed { background: transparent; padding: 0; align-items: flex-start; justify-content: center; }
+        /* Bottom Tab Bar */
+        .tab-bar {
+            display: flex; justify-content: space-between; padding-top: 20px;
+        }
+        .tab-btn {
+            width: 55px; height: 55px; border-radius: 15px; background: var(--bg-color);
+            box-shadow: var(--shadow-small); display: flex; align-items: center; justify-content: center;
+            font-size: 20px; color: var(--text-sub); cursor: pointer;
+        }
+        .tab-btn.active { box-shadow: var(--shadow-inset); color: var(--theme-color); }
+
+        /* Embed Mode */
         body.is-embed .window { display: none; }
-        body.is-embed .widget-frame { margin: 0; box-shadow: none; border: 1px solid rgba(255,255,255,0.1); }
-
-        /* Tooltip */
-        .tooltip { 
-            font-size: 10px; position: absolute; bottom: -22px; width: 100%; text-align: center; 
-            opacity: 0; transition: 0.2s; color: var(--text-sub); pointer-events: none; font-weight: 700;
-        }
-        .album-btn:hover .tooltip { opacity: 1; bottom: -20px; }
+        body.is-embed { background: transparent; }
 
     </style>
 </head>
 <body>
 
     <div class="window" id="setupWindow">
-        <div class="title-bar">
-            <div class="dots"><div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div></div>
-            <div class="bar-title">Pomodoro Player</div>
-            <div class="nav-controls">
-                <button class="nav-btn" id="prevBtn" onclick="moveStep(-1)" disabled><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg></button>
-                <button class="nav-btn" id="nextBtn" onclick="moveStep(1)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg></button>
+        <div id="step1" class="step active">
+            <div class="created-by">Step 1</div>
+            <h2>Set Your Theme</h2>
+            <label style="font-size: 12px; font-weight: 700;">Theme Color</label>
+            <input type="color" id="colorPicker" value="#e8bcbc" oninput="updateTheme(this.value)" style="height: 50px; cursor: pointer;">
+            <label style="font-size: 12px; font-weight: 700;">Focus Title</label>
+            <input type="text" id="titleInput" value="POMODORO SESSIONS" oninput="liveUpdate()">
+            <div class="nav-btns">
+                <div></div>
+                <button class="btn-ui" onclick="moveStep(2)">Next</button>
             </div>
         </div>
-        <div class="content">
-            <div class="step active" id="step1">
-                <h1>Design Your Player</h1>
-                <p>배경 스타일과 테마 색상을 선택하세요.</p>
-                
-                <label>Background Style</label>
-                <div class="glass-selector">
-                    <div class="glass-option active" onclick="setGlassMode('light', this)">Glass White</div>
-                    <div class="glass-option" onclick="setGlassMode('dark', this)">Glass Black</div>
-                </div>
-
-                <label>Theme Color</label>
-                <div class="color-palette" id="palette"></div>
-                
-                <div class="input-group">
-                    <label>Title</label>
-                    <input type="text" id="titleInput" value="Focus Beats" oninput="liveUpdate()" placeholder="음악 제목">
-                </div>
+        <div id="step2" class="step">
+            <div class="created-by">Step 2</div>
+            <h2>Set Time</h2>
+            <div style="display:flex; gap:10px;">
+                <input type="number" id="fTime" value="25" placeholder="Focus">
+                <input type="number" id="sTime" value="5" placeholder="Short">
             </div>
-
-            <div class="step" id="step2">
-                <h1>Album Art</h1>
-                <p>그라디언트를 사용하거나 이미지를 업로드하세요.</p>
-                
-                <label>Custom Image (Optional)</label>
-                <div class="file-drop-area">
-                    <span class="file-msg" id="fileMsg">Click or Drag Image Here</span>
-                    <input class="file-input" type="file" accept="image/*" onchange="handleFileSelect(this)">
-                </div>
-                <div style="text-align:center; margin-top:10px; font-size:11px; color:#999;">or enter image URL</div>
-                <input type="url" id="imageUrl" placeholder="https://example.com/image.jpg" oninput="handleUrlInput(this)" style="margin-top:5px;">
+            <div class="nav-btns">
+                <button class="btn-ui" onclick="moveStep(1)">Back</button>
+                <button class="btn-ui" onclick="generateUrl()">Complete</button>
             </div>
-
-            <div class="step" id="step3">
-                <h1>Time Recipe</h1>
-                <p>0분부터 자유롭게 시간을 설정하세요.</p>
-                <div style="display:flex; gap:10px;">
-                    <div class="input-group" style="flex:1;">
-                        <label>Focus</label>
-                        <input type="number" id="focusTime" value="25" min="0" oninput="liveUpdate()">
-                    </div>
-                    <div class="input-group" style="flex:1;">
-                        <label>Short</label>
-                        <input type="number" id="shortBreak" value="5" min="0" oninput="liveUpdate()">
-                    </div>
-                    <div class="input-group" style="flex:1;">
-                        <label>Long</label>
-                        <input type="number" id="longBreak" value="15" min="0" oninput="liveUpdate()">
-                    </div>
-                </div>
-                <div class="input-group">
-                    <label>Sets per Session</label>
-                    <input type="number" id="setsPerSession" value="4" min="1" placeholder="반복 횟수">
-                </div>
-            </div>
-
-            <div class="step" id="step4">
-                <h1>Ready to Play!</h1>
-                <p>설정이 완료되었습니다. URL을 복사하세요.</p>
-                <input type="text" id="resultUrl" readonly onclick="this.select()" style="font-family:monospace; color:var(--theme-color);">
-                <button onclick="copyUrl()" style="width:100%; margin-top:10px; background:#1d1d1f; color:#fff; padding:14px; border:none; border-radius:12px; font-weight:700; cursor:pointer;">Copy URL</button>
-            </div>
+        </div>
+        <div id="step3" class="step">
+            <h2>Ready!</h2>
+            <input type="text" id="resultUrl" readonly onclick="this.select()">
+            <button class="btn-ui" style="width:100%" onclick="copyUrl()">Copy URL</button>
         </div>
     </div>
 
-    <div class="widget-frame" id="widgetFrame">
-        <div class="flipper">
-            <div class="face front">
-                <div class="player-header">
-                    <div class="song-info">
-                        <div class="song-title" id="dTitle">Focus Beats</div>
-                        <div class="song-status" id="dStatus">Ready</div>
-                    </div>
-                    <svg class="spotify-icon" viewBox="0 0 24 24" onclick="toggleSettings()">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.59 14.42c-.18.3-.54.4-.84.22-2.31-1.41-5.22-1.73-8.65-.95-.33.07-.66-.14-.73-.47-.07-.33.14-.66.47-.73 3.79-.85 7.04-.47 9.53 1.05.3.18.4.54.22.84zm1.2-3.19c-.23.37-.71.49-1.08.26-2.65-1.63-6.69-2.1-9.82-1.15-.41.13-.85-.11-.98-.52-.13-.41.11-.85.52-.98 3.56-1.08 8.08-.55 11.1 1.31.37.23.49.71.26 1.08zm.1-3.32c-3.17-1.88-8.4-2.05-11.43-1.13-.48.15-1-.13-1.15-.61-.15-.48.13-1 .61-1.15 3.48-1.06 9.25-.86 12.87 1.28.45.26.6.84.34 1.29-.26.45-.84.6-1.29.34z"/>
-                    </svg>
-                </div>
+    <div class="widget-card" id="widget">
+        <div class="header">
+            <div class="created-by" id="dUser">created by [YOUR NAME]</div>
+            <h1 class="main-title" id="dTitle">POMODORO SESSIONS</h1>
+            <div class="sub-title">Stay Focused. Take Breaks.</div>
+        </div>
 
-                <div class="controls-area">
-                    <div class="album-btn" id="btnFocus" onclick="controlTimer('focus')"><div class="album-gradient" id="g1"></div><div class="tooltip">Focus</div></div>
-                    <div class="album-btn" id="btnShort" onclick="controlTimer('short')"><div class="album-gradient" id="g2"></div><div class="tooltip">Short</div></div>
-                    <div class="album-btn" id="btnLong" onclick="controlTimer('long')"><div class="album-gradient" id="g3"></div><div class="tooltip">Long</div></div>
-                    <div class="album-btn" id="btnStats" onclick="toggleStats()">
-                        <div class="btn-flipper">
-                            <div class="btn-face front"><div class="album-gradient" id="g4"></div></div>
-                            <div class="btn-face back"><span class="session-count" id="sessionVal">0</span></div>
-                        </div>
-                        <div class="tooltip">Stats</div>
-                    </div>
-                </div>
-
-                <div class="progress-container">
-                    <div class="progress-bg"><div class="progress-fill" id="progBar"></div></div>
-                    <div class="time-labels">
-                        <span id="currentTime">00:00</span>
-                        <span id="totalTime">25:00</span>
-                    </div>
-                </div>
+        <div class="main-content">
+            <div class="side-bar">
+                <div class="mode-btn active" id="m-focus" onclick="setMode('focus')">🔥</div>
+                <div class="mode-btn" id="m-short" onclick="setMode('short')">☕</div>
+                <div class="mode-btn" id="m-long" onclick="setMode('long')">🌴</div>
+                <div class="mode-btn" id="m-stats" onclick="toggleStats()">🏆</div>
             </div>
 
-            <div class="face back">
-                <div class="settings-header">
-                    <span class="settings-title">Quick Edit</span>
-                    <button class="close-btn" onclick="toggleSettings()">Done</button>
-                </div>
-                <div class="settings-body">
-                    <div class="setting-row">
-                        <label class="row-label">Title</label>
-                        <input type="text" class="mini-input" id="editTitle" oninput="liveUpdate()">
-                    </div>
-                    <div class="setting-row">
-                        <label class="row-label">Timer Setup (min)</label>
-                        <div style="display:flex; gap:6px;">
-                            <input type="number" class="mini-input" id="editFocus" min="0" onchange="liveUpdate()">
-                            <input type="number" class="mini-input" id="editShort" min="0" onchange="liveUpdate()">
-                            <input type="number" class="mini-input" id="editLong" min="0" onchange="liveUpdate()">
-                        </div>
-                    </div>
-                    <div class="toggle-row">
-                        <label class="row-label">Auto Start Next</label>
-                        <div class="toggle-switch" id="editAuto" onclick="toggleEditAuto(this)"><div class="toggle-knob"></div></div>
+            <div class="timer-container" onclick="toggleTimer()">
+                <div class="timer-fill-bg" id="timerFill"></div>
+                <div class="timer-inner">
+                    <div class="timer-text">
+                        <div class="percent-val" id="percentDisp">100%</div>
+                        <div class="time-val" id="timeDisp">25:00</div>
                     </div>
                 </div>
             </div>
         </div>
+
+        <div class="current-mode-label">Current Mode: <span id="modeName">Focus</span></div>
+
+        <div class="tab-bar">
+            <div class="tab-btn active">🏠</div>
+            <div class="tab-btn">🎵</div>
+            <div class="tab-btn">📷</div>
+            <div class="tab-btn">✉️</div>
+        </div>
     </div>
 
-<script>
-    const presets = ["ffb7b2", "e2f0cb", "b5ead7", "c7ceea", "e0f2f1", "595959", "ffaf40", "ff5252"];
-    let currentState = {
-        mode: 'IDLE',
-        timeLeft: 1500, totalTime: 1500,
-        isRunning: false, timerId: null,
-        currentSet: 0, completedSessions: 0,
-        config: {
-            title: "Focus Beats",
-            theme: "ffb7b2",
-            glass: "light",
-            img: "",
-            focus: 25, short: 5, long: 15, sets: 4, autoStart: false
-        }
-    };
-
-    /* === SETUP LOGIC === */
-    let step = 1;
-    function initOnboarding() {
-        const pal = document.getElementById('palette');
-        presets.forEach(c => {
-            const d = document.createElement('div');
-            d.className = 'color-dot';
-            d.style.background = '#' + c;
-            d.onclick = () => {
-                document.querySelectorAll('.color-dot').forEach(e => e.classList.remove('active'));
-                d.classList.add('active');
-                setTheme(c);
-            };
-            pal.appendChild(d);
-        });
-        document.querySelector('.color-dot').click();
-    }
-
-    function setGlassMode(mode, el) {
-        if(el) {
-            document.querySelectorAll('.glass-option').forEach(e => e.classList.remove('active'));
-            el.classList.add('active');
-        }
-        currentState.config.glass = mode;
-        const frame = document.getElementById('widgetFrame');
-        if (mode === 'dark') frame.setAttribute('data-theme', 'dark');
-        else frame.removeAttribute('data-theme');
-    }
-
-    function handleFileSelect(input) {
-        const file = input.files[0];
-        if (file) {
-            document.getElementById('fileMsg').innerText = file.name;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                currentState.config.img = e.target.result; // Base64
-                applyImage(currentState.config.img);
-            };
-            reader.readAsDataURL(file);
-        }
-    }
-
-    function handleUrlInput(input) {
-        if(input.value) {
-            currentState.config.img = input.value;
-            applyImage(input.value);
-            document.getElementById('fileMsg').innerText = "URL Image Loaded";
-        }
-    }
-
-    function applyImage(src) {
-        const ids = ['g1', 'g2', 'g3', 'g4'];
-        if (!src) {
-            // Revert to Gradients
-            setTheme(currentState.config.theme);
-            return;
-        }
-        ids.forEach(id => {
-            const el = document.getElementById(id).parentElement;
-            el.style.backgroundImage = `url('${src}')`;
-            // Remove Gradient children visually
-            document.getElementById(id).style.background = 'transparent';
-        });
-    }
-
-    function setTheme(hex) {
-        currentState.config.theme = hex;
-        document.documentElement.style.setProperty('--theme-color', '#' + hex);
-        if(!currentState.config.img) applyGradients(hex);
-        else {
-            // If image exists, keep image but update progress bar color
-        }
-    }
-
-    function applyGradients(hex) {
-        // Create variations for Gradients
-        // We will generate a linear gradient for each button
-        // C1 -> C2, C2 -> C3 ...
-        const toHSL = (hex) => {
-            let r = parseInt(hex.substring(0,2), 16)/255, g = parseInt(hex.substring(2,4), 16)/255, b = parseInt(hex.substring(4,6), 16)/255;
-            let max = Math.max(r,g,b), min = Math.min(r,g,b);
-            let h, s, l = (max+min)/2;
-            if(max==min) h=s=0; 
-            else {
-                let d = max-min;
-                s = l>0.5 ? d/(2-max-min) : d/(max+min);
-                switch(max){case r:h=(g-b)/d+(g<b?6:0);break; case g:h=(b-r)/d+2;break; case b:h=(r-g)/d+4;break;}
-                h/=6;
+    <script>
+        let state = {
+            isRunning: false,
+            timeLeft: 1500,
+            totalTime: 1500,
+            mode: 'focus',
+            timerId: null,
+            config: {
+                title: "POMODORO SESSIONS",
+                theme: "#e8bcbc",
+                focus: 25,
+                short: 5,
+                long: 15
             }
-            return {h:h*360, s:s*100, l:l*100};
         };
 
-        const base = toHSL(hex);
-        const pairs = [
-            [base, {h:base.h+20, s:base.s, l:base.l+10}],
-            [{h:base.h+20, s:base.s, l:base.l+10}, {h:base.h+40, s:base.s, l:base.l}],
-            [{h:base.h+40, s:base.s, l:base.l}, {h:base.h+60, s:base.s, l:base.l-10}],
-            [{h:base.h, s:base.s, l:base.l-10}, {h:base.h+10, s:base.s, l:base.l-20}]
-        ];
-
-        ['g1', 'g2', 'g3', 'g4'].forEach((id, i) => {
-            const p = pairs[i];
-            const g = `linear-gradient(135deg, hsl(${p[0].h},${p[0].s}%,${p[0].l}%), hsl(${p[1].h},${p[1].s}%,${p[1].l}%))`;
-            const el = document.getElementById(id);
-            el.parentElement.style.backgroundImage = 'none'; // clear image
-            el.style.background = g;
-        });
-    }
-
-    function moveStep(n) {
-        document.getElementById(`step${step}`).classList.remove('active');
-        step += n;
-        document.getElementById(`step${step}`).classList.add('active');
-        document.getElementById('prevBtn').disabled = (step === 1);
-        document.getElementById('nextBtn').style.display = (step === 4) ? 'none' : 'block';
-        if (step === 4) generateUrl();
-    }
-
-    function generateUrl() {
-        // Ensure values are synced
-        currentState.config.title = document.getElementById('titleInput').value;
-        currentState.config.focus = document.getElementById('focusTime').value;
-        currentState.config.short = document.getElementById('shortBreak').value;
-        currentState.config.long = document.getElementById('longBreak').value;
-        
-        // Remove Image Data from URL if too long (simple check)
-        let cfg = {...currentState.config};
-        if (cfg.img && cfg.img.length > 5000) {
-            alert("이미지 용량이 너무 큽니다. URL이 잘릴 수 있으니 이미지 링크를 사용해주세요.");
-            // We still try
+        function updateTheme(hex) {
+            state.config.theme = hex;
+            document.documentElement.style.setProperty('--theme-color', hex);
+            // 배경색도 테마색을 아주 연하게 섞음
+            const bgColor = `linear-gradient(145deg, ${hex}11, #f0f0f3)`;
+            // document.body.style.background = bgColor;
+            document.getElementById('timerFill').style.background = hex;
         }
 
-        const json = JSON.stringify(cfg);
-        const encoded = btoa(encodeURIComponent(json));
-        const url = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
-        document.getElementById('resultUrl').value = url;
-    }
-
-    function copyUrl() {
-        document.getElementById('resultUrl').select();
-        document.execCommand('copy');
-        alert("Copied! 🎉");
-    }
-
-    /* === WIDGET RUNTIME === */
-    function initWidget() {
-        const params = new URLSearchParams(window.location.search);
-        const data = params.get('data');
-        
-        if (data) {
-            document.body.classList.add('is-embed');
-            try {
-                currentState.config = JSON.parse(decodeURIComponent(atob(data)));
-                setGlassMode(currentState.config.glass);
-                setTheme(currentState.config.theme); // Set theme color
-                if (currentState.config.img) applyImage(currentState.config.img);
-            } catch(e) {}
-        } else {
-            initOnboarding();
+        function moveStep(n) {
+            document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+            document.getElementById(`step${n}`).classList.add('active');
         }
 
-        liveUpdate();
-        updateWidgetUI();
-    }
-
-    function liveUpdate() {
-        // Sync Title
-        const tVal = document.getElementById('titleInput').value || document.getElementById('editTitle').value;
-        if(tVal) currentState.config.title = tVal;
-        document.getElementById('dTitle').innerText = currentState.config.title;
-        document.getElementById('editTitle').value = currentState.config.title;
-
-        // Sync Times
-        const f = document.getElementById('focusTime').value || document.getElementById('editFocus').value;
-        const s = document.getElementById('shortBreak').value || document.getElementById('editShort').value;
-        const l = document.getElementById('longBreak').value || document.getElementById('editLong').value;
-        
-        if(f) currentState.config.focus = parseInt(f);
-        if(s) currentState.config.short = parseInt(s);
-        if(l) currentState.config.long = parseInt(l);
-
-        document.getElementById('editFocus').value = currentState.config.focus;
-        document.getElementById('editShort').value = currentState.config.short;
-        document.getElementById('editLong').value = currentState.config.long;
-
-        // Update Tooltips
-        document.querySelector('#btnFocus .tooltip').innerText = currentState.config.focus + "m";
-        document.querySelector('#btnShort .tooltip').innerText = currentState.config.short + "m";
-        document.querySelector('#btnLong .tooltip').innerText = currentState.config.long + "m";
-
-        // If idle, update timer display
-        if(!currentState.isRunning && currentState.mode === 'IDLE') {
-             // Default to Focus time
-             currentState.timeLeft = currentState.config.focus * 60;
-             currentState.totalTime = currentState.timeLeft;
-             updateWidgetUI();
-        }
-    }
-
-    function updateWidgetUI() {
-        const min = Math.floor(currentState.timeLeft / 60).toString().padStart(2, '0');
-        const sec = (currentState.timeLeft % 60).toString().padStart(2, '0');
-        document.getElementById('currentTime').innerText = `${min}:${sec}`;
-        
-        const tMin = Math.floor(currentState.totalTime / 60).toString().padStart(2, '0');
-        document.getElementById('totalTime').innerText = `${tMin}:00`;
-
-        const percent = currentState.totalTime === 0 ? 0 : ((currentState.totalTime - currentState.timeLeft) / currentState.totalTime) * 100;
-        document.getElementById('progBar').style.width = `${percent}%`;
-    }
-
-    function controlTimer(action) {
-        const btns = ['btnFocus', 'btnShort', 'btnLong'];
-        
-        // Pause logic
-        if (currentState.mode.toLowerCase() === action && currentState.isRunning) {
-            pauseTimer();
-            return;
-        }
-        // Resume logic
-        if (currentState.mode.toLowerCase() === action && !currentState.isRunning && currentState.timeLeft < currentState.totalTime) {
-            startTimer();
-            return;
+        function liveUpdate() {
+            const t = document.getElementById('titleInput').value;
+            document.getElementById('dTitle').innerText = t;
+            state.config.title = t;
         }
 
-        // Start New
-        btns.forEach(b => document.getElementById(b).classList.remove('playing'));
-        document.getElementById('btn' + action.charAt(0).toUpperCase() + action.slice(1)).classList.add('playing');
+        function setMode(m) {
+            state.mode = m;
+            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`m-${m}`).classList.add('active');
+            document.getElementById('modeName').innerText = m.charAt(0).toUpperCase() + m.slice(1);
+            
+            const mins = m === 'focus' ? state.config.focus : (m === 'short' ? state.config.short : state.config.long);
+            state.timeLeft = mins * 60;
+            state.totalTime = mins * 60;
+            state.isRunning = false;
+            clearInterval(state.timerId);
+            updateUI();
+        }
 
-        clearInterval(currentState.timerId);
-        currentState.isRunning = false;
-        currentState.mode = action.toUpperCase();
-        
-        let val = currentState.config[action];
-        currentState.totalTime = val * 60;
-        currentState.timeLeft = val * 60;
-        
-        const label = action === 'focus' ? "Focusing..." : (action === 'short' ? "Short Break" : "Long Break");
-        document.getElementById('dStatus').innerText = label;
-
-        updateWidgetUI();
-        startTimer();
-    }
-
-    function startTimer() {
-        if(currentState.isRunning) return;
-        currentState.isRunning = true;
-        currentState.timerId = setInterval(() => {
-            currentState.timeLeft--;
-            updateWidgetUI();
-            if (currentState.timeLeft <= 0) onComplete();
-        }, 1000);
-    }
-
-    function pauseTimer() {
-        clearInterval(currentState.timerId);
-        currentState.isRunning = false;
-        document.querySelector('.playing')?.classList.remove('playing');
-        document.getElementById('dStatus').innerText = "Paused";
-    }
-
-    function onComplete() {
-        pauseTimer();
-        const mode = currentState.mode;
-        if (mode === 'FOCUS') {
-            currentState.currentSet++;
-            if (currentState.config.autoStart) controlTimer('short');
-            else document.getElementById('dStatus').innerText = "Focus Done";
-        } else if (mode === 'SHORT' || mode === 'LONG') {
-            if (mode === 'LONG') {
-                currentState.completedSessions++;
-                document.getElementById('sessionVal').innerText = currentState.completedSessions;
+        function toggleTimer() {
+            if (state.isRunning) {
+                clearInterval(state.timerId);
+                state.isRunning = false;
+            } else {
+                state.isRunning = true;
+                state.timerId = setInterval(() => {
+                    state.timeLeft--;
+                    updateUI();
+                    if (state.timeLeft <= 0) {
+                        clearInterval(state.timerId);
+                        state.isRunning = false;
+                        alert("Time is up!");
+                    }
+                }, 1000);
             }
-            if (currentState.config.autoStart && mode === 'SHORT') controlTimer('focus');
-            else document.getElementById('dStatus').innerText = "Break Over";
         }
-    }
 
-    function toggleStats() {
-        document.getElementById('btnStats').classList.toggle('flipped');
-    }
-
-    function toggleSettings() {
-        const frame = document.getElementById('widgetFrame');
-        const isFlipping = !frame.classList.contains('flipped');
-        frame.classList.toggle('flipped');
-        
-        // Dynamic Height Logic (No Scroll)
-        if (isFlipping) {
-             // Calculate approximate height needed for settings
-             frame.style.height = "320px"; 
-        } else {
-             frame.style.height = "160px";
+        function updateUI() {
+            const m = Math.floor(state.timeLeft / 60);
+            const s = state.timeLeft % 60;
+            document.getElementById('timeDisp').innerText = `${m}:${s.toString().padStart(2, '0')}`;
+            
+            const percent = Math.floor((state.timeLeft / state.totalTime) * 100);
+            document.getElementById('percentDisp').innerText = `${percent}%`;
+            
+            // 시각적 효과
+            document.getElementById('timerFill').style.height = `${percent}%`;
+            document.getElementById('timerFill').style.top = `${100 - percent}%`;
         }
-    }
 
-    function toggleEditAuto(el) {
-        el.classList.toggle('on');
-        currentState.config.autoStart = el.classList.contains('on');
-    }
+        function generateUrl() {
+            state.config.focus = document.getElementById('fTime').value;
+            state.config.short = document.getElementById('sTime').value;
+            const encoded = btoa(encodeURIComponent(JSON.stringify(state.config)));
+            document.getElementById('resultUrl').value = window.location.origin + window.location.pathname + "?d=" + encoded;
+            moveStep(3);
+        }
 
-    window.onload = initWidget;
-</script>
+        function copyUrl() {
+            document.getElementById('resultUrl').select();
+            document.execCommand('copy');
+            alert("URL Copied!");
+        }
+
+        window.onload = () => {
+            const params = new URLSearchParams(window.location.search);
+            const d = params.get('d');
+            if (d) {
+                document.body.classList.add('is-embed');
+                const cfg = JSON.parse(decodeURIComponent(atob(d)));
+                state.config = cfg;
+                updateTheme(cfg.theme);
+                document.getElementById('dTitle').innerText = cfg.title;
+                setMode('focus');
+            } else {
+                updateTheme('#e8bcbc');
+            }
+        };
+    </script>
 </body>
 </html>
