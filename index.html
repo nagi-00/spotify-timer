@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pomodoro Player</title>
+    <style>
+        :root {
+            --theme-color: #ffb7b2; /* 기본 테마 */
+            --bg-color: #ffffff;
+            --text-color: #1d1d1f;
+            --sub-text: #86868b;
+            --shadow-pale: 0 4px 12px rgba(0,0,0,0.08);
+            --shadow-deep: 0 8px 20px rgba(0,0,0,0.12);
+            --radius-window: 20px;
+            --radius-widget: 16px;
+        }
+
+        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; letter-spacing: -0.02em; user-select: none; }
+        body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f2f2f2; padding: 20px; transition: background 0.3s; }
+        
+        /* === Setup Window (macOS Style) === */
+        .window {
+            width: 100%; max-width: 420px; background: #fff; border-radius: var(--radius-window);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08); overflow: hidden;
+            border: 1px solid rgba(0,0,0,0.06); display: flex; flex-direction: column;
+            margin-bottom: 40px; z-index: 10; transition: 0.3s;
+        }
+        .title-bar { height: 50px; background: #fff; display: flex; align-items: center; padding: 0 16px; border-bottom: 1px solid rgba(0,0,0,0.05); }
+        .dots { display: flex; gap: 7px; flex: 1; }
+        .dot { width: 11px; height: 11px; border-radius: 50%; }
+        .dot.red { background: #ff5f57; border: 1px solid #e0443e; } 
+        .dot.yellow { background: #febc2e; border: 1px solid #dba524; } 
+        .dot.green { background: #28c840; border: 1px solid #1da932; }
+        .bar-title { font-size: 13px; font-weight: 600; color: #333; flex: 2; text-align: center; }
+        .nav-controls { flex: 1; display: flex; justify-content: flex-end; gap: 12px; }
+        .nav-btn { background: none; border: none; cursor: pointer; color: #555; padding: 0; display: flex; align-items: center; opacity: 0.7; transition: 0.2s; }
+        .nav-btn:hover { opacity: 1; }
+        .nav-btn:disabled { opacity: 0.2; cursor: default; }
+
+        .content { padding: 30px 25px; min-height: 280px; position: relative; }
+        .step { display: none; animation: fadeUp 0.3s ease; }
+        .step.active { display: block; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        h1 { font-size: 22px; font-weight: 700; margin: 0 0 8px; color: var(--text-color); }
+        p { font-size: 13px; color: var(--sub-text); margin-bottom: 24px; line-height: 1.4; }
+        
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-size: 11px; font-weight: 600; color: #666; margin-bottom: 6px; text-transform: uppercase; }
+        input[type="text"], input[type="number"], input[type="url"], select { 
+            width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #e1e1e1; 
+            background: #f9f9fc; outline: none; font-size: 13px; transition: 0.2s;
+        }
+        input:focus { border-color: var(--theme-color); background: #fff; }
+        
+        .color-palette { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+        .color-dot { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid #fff; box-shadow: 0 0 0 1px #ddd; transition: 0.2s; }
+        .color-dot:hover { transform: scale(1.1); }
+        .color-dot.active { box-shadow: 0 0 0 2px #333; }
+
+        /* === Widget Frame === */
+        .widget-frame {
+            width: 300px; /* 스포티파이 위젯 느낌 */
+            min-height: 150px;
+            background: #fff; 
+            border-radius: var(--radius-widget);
+            box-shadow: var(--shadow-pale);
+            position: relative;
+            perspective: 1000px; /* 3D 효과 */
+            transition: height 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); /* 높이 애니메이션 */
+        }
+
+        /* 3D Flip Container */
+        .flipper {
+            position: relative; width: 100%; height: 100%;
+            transition: transform 0.6s cubic-bezier(0.4, 0.0, 0.2, 1);
+            transform-style: preserve-3d;
+        }
+        .widget-frame.flipped .flipper { transform: rotateY(180deg); }
+        
+        .face {
+            position: absolute; width: 100%; height: 100%;
+            backface-visibility: hidden; top: 0; left: 0;
+            background: #fff; border-radius: var(--radius-widget);
+            overflow: hidden; display: flex; flex-direction: column;
+        }
+        .face.back { transform: rotateY(180deg); background: #fbfbfb; overflow-y: auto; }
+
+        /* === Front Face: Player === */
+        .player-header {
+            padding: 12px 14px 4px; display: flex; align-items: center; justify-content: space-between;
+        }
+        .song-info { display: flex; flex-direction: column; gap: 2px; }
+        .song-title { font-size: 14px; font-weight: 700; color: #222; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 200px; }
+        .song-status { font-size: 10px; font-weight: 600; color: var(--theme-color); text-transform: uppercase; letter-spacing: 0.05em; }
+
+        .spotify-icon { width: 20px; height: 20px; cursor: pointer; opacity: 0.6; transition: 0.2s; fill: #1d1d1f; }
+        .spotify-icon:hover { opacity: 1; transform: scale(1.05); }
+
+        .controls-area {
+            flex: 1; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 10px;
+        }
+        
+        /* 4 Album Arts Buttons */
+        .album-btn {
+            width: 50px; height: 50px; border-radius: 8px; cursor: pointer;
+            position: relative; overflow: hidden; box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .album-btn:active { transform: scale(0.95); }
+        .album-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.1); }
+        .album-btn.playing { border: 2px solid var(--theme-color); animation: pulse 2s infinite; }
+        
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0,0,0,0.1); } 70% { box-shadow: 0 0 0 6px rgba(0,0,0,0); } 100% { box-shadow: 0 0 0 0 rgba(0,0,0,0); } }
+
+        .album-color { width: 100%; height: 100%; position: absolute; top: 0; left: 0; transition: 0.3s; }
+        .album-icon { position: relative; z-index: 2; color: #fff; font-size: 14px; opacity: 0.9; }
+
+        /* Button 4 Flipper */
+        .btn-flipper { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; transition: transform 0.6s; }
+        .album-btn.flipped .btn-flipper { transform: rotateX(180deg); }
+        .btn-face { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; border-radius: 8px; }
+        .btn-face.front { z-index: 2; }
+        .btn-face.back { transform: rotateX(180deg); background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); }
+        .session-count { color: #fff; font-weight: 800; font-size: 18px; }
+
+        /* Progress Bar */
+        .progress-container { padding: 0 16px 16px; }
+        .progress-bg { width: 100%; height: 4px; background: rgba(0,0,0,0.05); border-radius: 2px; overflow: hidden; position: relative; }
+        .progress-fill { height: 100%; background: var(--theme-color); width: 0%; border-radius: 2px; transition: width 1s linear; }
+        .time-labels { display: flex; justify-content: space-between; margin-top: 6px; font-size: 9px; color: #aaa; font-weight: 500; font-variant-numeric: tabular-nums; }
+
+        /* === Back Face: Settings === */
+        .settings-header { padding: 14px 16px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .settings-title { font-size: 12px; font-weight: 700; color: #333; }
+        .close-btn { cursor: pointer; color: #888; background: none; border: none; font-size: 11px; font-weight: 600; }
+        .settings-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+        .setting-row { display: flex; flex-direction: column; gap: 4px; }
+        .row-label { font-size: 10px; color: #666; font-weight: 600; }
+        .mini-input { padding: 6px 8px; font-size: 11px; border-radius: 6px; border: 1px solid #ddd; width: 100%; }
+        .toggle-row { display: flex; justify-content: space-between; align-items: center; }
+        .toggle-switch { width: 32px; height: 18px; background: #ddd; border-radius: 10px; position: relative; cursor: pointer; transition: 0.3s; }
+        .toggle-switch.on { background: var(--theme-color); }
+        .toggle-knob { width: 14px; height: 14px; background: #fff; border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: 0.3s; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+        .toggle-switch.on .toggle-knob { transform: translateX(14px); }
+
+        /* Embed State */
+        body.is-embed { background: transparent; padding: 0; align-items: flex-start; justify-content: flex-start; }
+        body.is-embed .window { display: none; }
+        body.is-embed .widget-frame { margin: 0; box-shadow: none; border: 1px solid rgba(0,0,0,0.08); }
+
+        /* Tooltip */
+        .tooltip { font-size: 9px; position: absolute; bottom: -20px; width: 100%; text-align: center; opacity: 0; transition: 0.2s; color: #888; pointer-events: none;}
+        .album-btn:hover .tooltip { opacity: 1; bottom: -16px; }
+
+    </style>
+</head>
+<body>
+
+    <div class="window" id="setupWindow">
+        <div class="title-bar">
+            <div class="dots"><div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div></div>
+            <div class="bar-title">Pomodoro Cooker</div>
+            <div class="nav-controls">
+                <button class="nav-btn" id="prevBtn" onclick="moveStep(-1)" disabled><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg></button>
+                <button class="nav-btn" id="nextBtn" onclick="moveStep(1)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg></button>
+            </div>
+        </div>
+        <div class="content">
+            <div class="step active" id="step1">
+                <h1>Design Your Player</h1>
+                <p>플레이어의 테마 색상과 타이틀을 정해주세요.</p>
+                <div class="input-group">
+                    <label>Title</label>
+                    <input type="text" id="titleInput" value="Party Rockk" placeholder="음악 제목 (예: Lo-fi Beats)">
+                </div>
+                <label>Theme Color</label>
+                <div class="color-palette" id="palette">
+                    </div>
+                <input type="color" id="cp" style="visibility:hidden; position:absolute;" oninput="pickCustomColor(this.value)">
+                <button onclick="document.getElementById('cp').click()" style="padding:6px 12px; border-radius:6px; border:1px solid #ddd; background:#fff; font-size:11px; cursor:pointer;">Custom Color 🎨</button>
+            </div>
+
+            <div class="step" id="step2">
+                <h1>Time Recipe</h1>
+                <p>집중 시간과 휴식 시간을 설정하세요 (분 단위).</p>
+                <div style="display:flex; gap:10px;">
+                    <div class="input-group" style="flex:1;">
+                        <label>Focus</label>
+                        <input type="number" id="focusTime" value="25">
+                    </div>
+                    <div class="input-group" style="flex:1;">
+                        <label>Short Break</label>
+                        <input type="number" id="shortBreak" value="5">
+                    </div>
+                    <div class="input-group" style="flex:1;">
+                        <label>Long Break</label>
+                        <input type="number" id="longBreak" value="15">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Sets per Session</label>
+                    <input type="number" id="setsPerSession" value="4" placeholder="몇 번 집중 후 긴 휴식?">
+                </div>
+            </div>
+
+            <div class="step" id="step3">
+                <h1>Finishing Touches</h1>
+                <p>자동 시작 여부와 완료 시 열릴 링크를 설정하세요.</p>
+                <div class="input-group" style="display:flex; justify-content:space-between; align-items:center; background:#f9f9fc; padding:12px; border-radius:10px; border:1px solid #eee;">
+                    <span style="font-size:13px; color:#333;">Auto-start Breaks?</span>
+                    <div class="toggle-switch" id="autoStartToggle" onclick="this.classList.toggle('on')">
+                        <div class="toggle-knob"></div>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Reward Link (Optional)</label>
+                    <input type="url" id="rewardLink" placeholder="https://youtube.com/..." style="margin-bottom:5px;">
+                    <span style="font-size:10px; color:#999;">긴 휴식이 시작될 때 이 링크가 열립니다.</span>
+                </div>
+            </div>
+
+             <div class="step" id="step4">
+                <h1>Ready to Cook!</h1>
+                <p>아래 URL을 복사하여 노션에 임베드하세요.</p>
+                <input type="text" id="resultUrl" readonly onclick="this.select()" style="font-family:monospace; color:var(--theme-color);">
+                <button onclick="copyUrl()" style="width:100%; margin-top:10px; background:#1d1d1f; color:#fff; padding:12px; border:none; border-radius:10px; font-weight:600; cursor:pointer;">Copy URL</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="widget-frame" id="widgetFrame">
+        <div class="flipper">
+            <div class="face front">
+                <div class="player-header">
+                    <div class="song-info">
+                        <div class="song-title" id="dTitle">Title</div>
+                        <div class="song-status" id="dStatus">Ready</div>
+                    </div>
+                    <svg class="spotify-icon" viewBox="0 0 24 24" onclick="toggleSettings()">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.59 14.42c-.18.3-.54.4-.84.22-2.31-1.41-5.22-1.73-8.65-.95-.33.07-.66-.14-.73-.47-.07-.33.14-.66.47-.73 3.79-.85 7.04-.47 9.53 1.05.3.18.4.54.22.84zm1.2-3.19c-.23.37-.71.49-1.08.26-2.65-1.63-6.69-2.1-9.82-1.15-.41.13-.85-.11-.98-.52-.13-.41.11-.85.52-.98 3.56-1.08 8.08-.55 11.1 1.31.37.23.49.71.26 1.08zm.1-3.32c-3.17-1.88-8.4-2.05-11.43-1.13-.48.15-1-.13-1.15-.61-.15-.48.13-1 .61-1.15 3.48-1.06 9.25-.86 12.87 1.28.45.26.6.84.34 1.29-.26.45-.84.6-1.29.34z"/>
+                    </svg>
+                </div>
+
+                <div class="controls-area">
+                    <div class="album-btn" id="btnFocus" onclick="controlTimer('focus')">
+                        <div class="album-color" id="c1"></div>
+                        <span class="album-icon">🔥</span>
+                        <div class="tooltip">Focus</div>
+                    </div>
+                    <div class="album-btn" id="btnShort" onclick="controlTimer('short')">
+                        <div class="album-color" id="c2"></div>
+                        <span class="album-icon">☕️</span>
+                        <div class="tooltip">Short</div>
+                    </div>
+                    <div class="album-btn" id="btnLong" onclick="controlTimer('long')">
+                        <div class="album-color" id="c3"></div>
+                        <span class="album-icon">🌴</span>
+                        <div class="tooltip">Long</div>
+                    </div>
+                    <div class="album-btn" id="btnStats" onclick="toggleStats()">
+                        <div class="btn-flipper">
+                            <div class="btn-face front">
+                                <div class="album-color" id="c4"></div>
+                                <span class="album-icon">🏆</span>
+                            </div>
+                            <div class="btn-face back">
+                                <span class="session-count" id="sessionVal">0</span>
+                            </div>
+                        </div>
+                        <div class="tooltip">Stats</div>
+                    </div>
+                </div>
+
+                <div class="progress-container">
+                    <div class="progress-bg">
+                        <div class="progress-fill" id="progBar"></div>
+                    </div>
+                    <div class="time-labels">
+                        <span id="currentTime">00:00</span>
+                        <span id="totalTime">25:00</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="face back">
+                <div class="settings-header">
+                    <span class="settings-title">Edit Recipe</span>
+                    <button class="close-btn" onclick="toggleSettings()">Done</button>
+                </div>
+                <div class="settings-body">
+                    <div class="setting-row">
+                        <label class="row-label">Title</label>
+                        <input type="text" class="mini-input" id="editTitle" oninput="liveUpdate()">
+                    </div>
+                    <div class="setting-row">
+                        <label class="row-label">Times (min)</label>
+                        <div style="display:flex; gap:5px;">
+                            <input type="number" class="mini-input" id="editFocus" placeholder="F" onchange="liveUpdate()">
+                            <input type="number" class="mini-input" id="editShort" placeholder="S" onchange="liveUpdate()">
+                            <input type="number" class="mini-input" id="editLong" placeholder="L" onchange="liveUpdate()">
+                        </div>
+                    </div>
+                    <div class="toggle-row">
+                        <label class="row-label">Auto Start Break</label>
+                        <div class="toggle-switch" id="editAuto" onclick="toggleEditAuto(this)">
+                            <div class="toggle-knob"></div>
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <label class="row-label">YouTube Link</label>
+                        <input type="url" class="mini-input" id="editLink" placeholder="https://..." onchange="liveUpdate()">
+                    </div>
+                    <div class="setting-row">
+                        <label class="row-label" style="margin-top:5px; color:#aaa;">Changes are saved locally for this session.</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    /* === GLOBAL STATE === */
+    const presets = ["ffb7b2", "e2f0cb", "b5ead7", "c7ceea", "e0f2f1", "1d1d1f"];
+    let currentState = {
+        mode: 'IDLE', // FOCUS, SHORT, LONG
+        timeLeft: 1500,
+        totalTime: 1500,
+        isRunning: false,
+        timerId: null,
+        currentSet: 0,
+        completedSessions: 0,
+        config: {
+            title: "Party Rockk",
+            theme: "ffb7b2",
+            focus: 25, short: 5, long: 15,
+            sets: 4,
+            autoStart: false,
+            link: ""
+        }
+    };
+
+    /* === ONBOARDING LOGIC === */
+    let step = 1;
+    function initOnboarding() {
+        const pal = document.getElementById('palette');
+        presets.forEach(c => {
+            const d = document.createElement('div');
+            d.className = 'color-dot';
+            d.style.background = '#' + c;
+            d.onclick = () => {
+                document.querySelectorAll('.color-dot').forEach(e => e.classList.remove('active'));
+                d.classList.add('active');
+                setTheme(c);
+            };
+            pal.appendChild(d);
+        });
+        document.querySelector('.color-dot').click(); // Select first
+    }
+
+    function pickCustomColor(hex) {
+        setTheme(hex.replace('#', ''));
+        document.querySelectorAll('.color-dot').forEach(e => e.classList.remove('active'));
+    }
+
+    function setTheme(hex) {
+        currentState.config.theme = hex;
+        document.documentElement.style.setProperty('--theme-color', '#' + hex);
+        applyColorsToWidget(hex);
+    }
+
+    function moveStep(n) {
+        document.getElementById(`step${step}`).classList.remove('active');
+        step += n;
+        document.getElementById(`step${step}`).classList.add('active');
+        document.getElementById('prevBtn').disabled = (step === 1);
+        document.getElementById('nextBtn').style.display = (step === 4) ? 'none' : 'block';
+
+        if (step === 4) generateUrl();
+    }
+
+    function generateUrl() {
+        const c = currentState.config;
+        c.title = document.getElementById('titleInput').value || "Music";
+        c.focus = parseInt(document.getElementById('focusTime').value) || 25;
+        c.short = parseInt(document.getElementById('shortBreak').value) || 5;
+        c.long = parseInt(document.getElementById('longBreak').value) || 15;
+        c.sets = parseInt(document.getElementById('setsPerSession').value) || 4;
+        c.autoStart = document.getElementById('autoStartToggle').classList.contains('on');
+        c.link = document.getElementById('rewardLink').value;
+
+        // Base64 encode config
+        const json = JSON.stringify(c);
+        const encoded = btoa(encodeURIComponent(json));
+        const url = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
+        
+        document.getElementById('resultUrl').value = url;
+    }
+
+    function copyUrl() {
+        const el = document.getElementById('resultUrl');
+        el.select();
+        document.execCommand('copy');
+        alert("Copied! 🤍");
+    }
+
+    /* === WIDGET LOGIC === */
+    function initWidget() {
+        const params = new URLSearchParams(window.location.search);
+        const data = params.get('data');
+        
+        if (data) {
+            document.body.classList.add('is-embed');
+            try {
+                const cfg = JSON.parse(decodeURIComponent(atob(data)));
+                currentState.config = cfg;
+            } catch(e) { console.error("URL Parsing Error", e); }
+        } else {
+            initOnboarding(); // Show setup if no data
+        }
+
+        // Apply Config
+        updateWidgetUI();
+        applyColorsToWidget(currentState.config.theme);
+        
+        // Populate Settings inputs
+        document.getElementById('editTitle').value = currentState.config.title;
+        document.getElementById('editFocus').value = currentState.config.focus;
+        document.getElementById('editShort').value = currentState.config.short;
+        document.getElementById('editLong').value = currentState.config.long;
+        document.getElementById('editLink').value = currentState.config.link;
+        if(currentState.config.autoStart) document.getElementById('editAuto').classList.add('on');
+    }
+
+    function updateWidgetUI() {
+        document.getElementById('dTitle').innerText = currentState.config.title;
+        document.documentElement.style.setProperty('--theme-color', '#' + currentState.config.theme);
+        
+        // Update Time Display
+        const min = Math.floor(currentState.timeLeft / 60).toString().padStart(2, '0');
+        const sec = (currentState.timeLeft % 60).toString().padStart(2, '0');
+        document.getElementById('currentTime').innerText = `${min}:${sec}`;
+        
+        const tMin = Math.floor(currentState.totalTime / 60).toString().padStart(2, '0');
+        document.getElementById('totalTime').innerText = `${tMin}:00`;
+
+        // Progress
+        const percent = ((currentState.totalTime - currentState.timeLeft) / currentState.totalTime) * 100;
+        document.getElementById('progBar').style.width = `${percent}%`;
+    }
+
+    /* Color Harmony Generator */
+    function applyColorsToWidget(hex) {
+        // Convert Hex to HSL for manipulation
+        let r = parseInt(hex.substring(0,2), 16)/255;
+        let g = parseInt(hex.substring(2,4), 16)/255;
+        let b = parseInt(hex.substring(4,6), 16)/255;
+        let max = Math.max(r, g, b), min = Math.min(r, g, b);
+        let h, s, l = (max + min) / 2;
+        if(max == min) h = s = 0; 
+        else {
+            let d = max - min;
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            switch(max){ case r: h = (g - b) / d + (g < b ? 6 : 0); break; case g: h = (b - r) / d + 2; break; case b: h = (r - g) / d + 4; break; }
+            h /= 6;
+        }
+        
+        // Create 4 Harmonious Colors
+        const c1 = `hsl(${h*360}, ${s*100}%, ${l*100}%)`; // Main
+        const c2 = `hsl(${h*360}, ${Math.max(0, s*100 - 20)}%, ${Math.min(100, l*100 + 15)}%)`; // Lighter/Muted
+        const c3 = `hsl(${(h*360 + 30) % 360}, ${s*100}%, ${Math.min(100, l*100 + 5)}%)`; // Analogous
+        const c4 = `hsl(${h*360}, ${s*100}%, ${Math.max(0, l*100 - 10)}%)`; // Darker
+
+        document.getElementById('c1').style.background = c1;
+        document.getElementById('c2').style.background = c2;
+        document.getElementById('c3').style.background = c3;
+        document.getElementById('c4').style.background = c4;
+    }
+
+    /* Timer Logic */
+    function controlTimer(action) {
+        const btns = ['btnFocus', 'btnShort', 'btnLong'];
+        
+        // If clicking the active mode button -> Pause/Resume
+        if (currentState.mode.toLowerCase() === action && currentState.isRunning) {
+            pauseTimer();
+            return;
+        }
+        if (currentState.mode.toLowerCase() === action && !currentState.isRunning && currentState.timeLeft < currentState.totalTime) {
+            startTimer();
+            return;
+        }
+
+        // Reset Styles
+        btns.forEach(b => document.getElementById(b).classList.remove('playing'));
+        document.getElementById('btn' + action.charAt(0).toUpperCase() + action.slice(1)).classList.add('playing');
+
+        // Setup Time
+        clearInterval(currentState.timerId);
+        currentState.isRunning = false;
+        currentState.mode = action.toUpperCase(); // FOCUS, SHORT, LONG
+        
+        let min = 25;
+        if (action === 'focus') {
+             min = currentState.config.focus;
+             document.getElementById('dStatus').innerText = "Focusing...";
+        } else if (action === 'short') {
+             min = currentState.config.short;
+             document.getElementById('dStatus').innerText = "Short Break";
+        } else {
+             min = currentState.config.long;
+             document.getElementById('dStatus').innerText = "Long Break";
+        }
+        
+        currentState.totalTime = min * 60;
+        currentState.timeLeft = min * 60;
+        updateWidgetUI();
+        startTimer();
+    }
+
+    function startTimer() {
+        if(currentState.isRunning) return;
+        currentState.isRunning = true;
+        currentState.timerId = setInterval(() => {
+            currentState.timeLeft--;
+            updateWidgetUI();
+            
+            if (currentState.timeLeft <= 0) {
+                onTimerComplete();
+            }
+        }, 1000);
+    }
+
+    function pauseTimer() {
+        clearInterval(currentState.timerId);
+        currentState.isRunning = false;
+        document.querySelector('.playing')?.classList.remove('playing'); // Stop pulse
+        document.getElementById('dStatus').innerText = "Paused";
+    }
+
+    function onTimerComplete() {
+        pauseTimer();
+        const mode = currentState.mode;
+        
+        // Logic Flow
+        if (mode === 'FOCUS') {
+            currentState.currentSet++;
+            if (currentState.currentSet >= currentState.config.sets) {
+                // Time for Long Break
+                alert("Great Job! Time for a Long Break 🌴");
+                controlTimer('long');
+            } else {
+                // Time for Short Break
+                if (currentState.config.autoStart) {
+                    controlTimer('short');
+                } else {
+                    document.getElementById('dStatus').innerText = "Focus Done";
+                    // Alert or Sound here optionally
+                }
+            }
+        } else if (mode === 'SHORT') {
+            document.getElementById('dStatus').innerText = "Break Over";
+             if (currentState.config.autoStart) {
+                controlTimer('focus');
+             }
+        } else if (mode === 'LONG') {
+            // End of Session
+            currentState.completedSessions++;
+            currentState.currentSet = 0; // Reset sets
+            document.getElementById('sessionVal').innerText = currentState.completedSessions;
+            document.getElementById('dStatus').innerText = "Session Done";
+            
+            // Trigger Link
+            if (currentState.config.link) {
+                window.open(currentState.config.link, '_blank');
+            }
+        }
+    }
+
+    /* Flip Logic & Settings */
+    function toggleStats() {
+        document.getElementById('btnStats').classList.toggle('flipped');
+    }
+
+    function toggleSettings() {
+        const frame = document.getElementById('widgetFrame');
+        const isFlippingToSettings = !frame.classList.contains('flipped');
+        
+        frame.classList.toggle('flipped');
+
+        // Dynamic Height Expansion
+        if (isFlippingToSettings) {
+             frame.style.height = "280px"; // Expand for settings
+        } else {
+             frame.style.height = ""; // Reset to CSS default (min-height: 150px or auto)
+        }
+    }
+
+    function toggleEditAuto(el) {
+        el.classList.toggle('on');
+        liveUpdate();
+    }
+
+    function liveUpdate() {
+        currentState.config.title = document.getElementById('editTitle').value;
+        currentState.config.focus = parseInt(document.getElementById('editFocus').value) || 25;
+        currentState.config.short = parseInt(document.getElementById('editShort').value) || 5;
+        currentState.config.long = parseInt(document.getElementById('editLong').value) || 15;
+        currentState.config.autoStart = document.getElementById('editAuto').classList.contains('on');
+        currentState.config.link = document.getElementById('editLink').value;
+        
+        document.getElementById('dTitle').innerText = currentState.config.title;
+    }
+
+    // Initialize
+    window.onload = initWidget;
+
+</script>
+</body>
+</html>
